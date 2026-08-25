@@ -1,44 +1,55 @@
-# Cloudflare Worker (Proxy — Token Disembunyikan)
+# Deploy di Cloudflare (Pages + Worker) — 100% gratis
 
-Tujuannya: **token Apps Script tidak pernah ada di browser/app**, sehingga privasi maksimal.
-Browser → Cloudflare Worker (ada token) → Google Apps Script.
+Frontend di **Cloudflare Pages**, proxy token di **Cloudflare Worker**.
+Satu ekosistem, gratis, token tidak pernah ada di browser.
 
-## 1. Deploy Worker (gratis, ~3 menit)
-1. Buka https://workers.cloudflare.com → **Sign up / Log in** (pakai akun Cloudflare gratis).
-2. Klik **Create** (atau "Create Worker") → beri nama `finance-tracker-proxy`.
-3. Hapus isi editor, lalu **paste** kode dari [`worker.js`](worker.js) di repo ini.
-4. Klik **Save** lalu **Deploy**.
-5. Kamu dapat URL seperti:
-   `https://finance-tracker-proxy.<subdomain>.workers.dev`
-   >>> Copy URL ini.
+## A. Cloudflare Worker (proxy — token disembunyikan)
+1. https://workers.cloudflare.com → **Create** → **Start with Hello World!**
+2. Di editor: klik file `worker.js`, tekan `Ctrl+A` lalu `Ctrl+V` → paste isi [`worker.js`](worker.js).
+3. **Deploy** → dapat URL: `https://finance-tracker-proxy.<sub>.workers.dev`
+4. **Settings → Variables** → tambah:
+   - `APPS_SCRIPT_URL` = `https://script.google.com/macros/s/AKfycbxh08y0xHqQt4wEfFkgLKtwqxNWGGVRMxYOU5GkfQLFvBCuepOlg2vGqEA_NhS636Y8/exec`
+   - `APPS_SCRIPT_TOKEN` = `k3u4ng4nPrib4di_9zQ2xL`
+5. Save / Deploy lagi.
 
-## 2. Set environment variables (isi token di sini, bukan di app)
-Di dashboard Worker → tab **Settings** → **Variables** (atau "Environment Variables"):
-- `APPS_SCRIPT_URL` = `https://script.google.com/macros/s/AKfycbxh08y0xHqQt4wEfFkgLKtwqxNWGGVRMxYOU5GkfQLFvBCuepOlg2vGqEA_NhS636Y8/exec`
-- `APPS_SCRIPT_TOKEN` = `k3u4ng4nPrib4di_9zQ2xL`
-Klik **Save** / **Deploy** lagi supaya variabel aktif.
+## B. Cloudflare Pages (frontend)
+1. Dashboard CF → **Workers & Pages** → **Create** → pilih tab **Pages** → **Connect to Git**.
+2. Pilih repo GitHub `wrvnnull/finance-tracker`.
+3. Settings build:
+   - Framework preset: **None**
+   - Build command: (kosongkan)
+   - Output directory: `/`  (atau `.`)
+4. **Save & Deploy** → dapat URL: `https://finance-tracker.<sub>.pages.dev`
+   (Bisa tambahkan custom domain nanti di tab Custom domains.)
 
-> Jangan commit token ke repo. Token hanya ada di Cloudflare (server) + Google Apps Script.
-> Di `config.js`, `TOKEN` dibiarin kosong dan `USE_PROXY: true`.
-
-## 3. Hubungkan app ke Worker
-Edit [`config.js`](config.js), isi:
+## C. Hubungkan app ke Worker
+Edit [`config.js`](config.js):
 ```js
 window.APP_CONFIG = {
-  APPS_SCRIPT_URL: 'https://finance-tracker-proxy.<subdomain>.workers.dev',
+  APPS_SCRIPT_URL: 'https://finance-tracker-proxy.<sub>.workers.dev', // URL Worker
   TOKEN: '',
   USE_PROXY: true,
   CURRENCY: 'Rp',
   ACCOUNTS: ['Dompet', 'Bank', 'Crypto', 'Lainnya']
 };
 ```
-Lalu commit & push. App sekarang memanggil Worker, Worker menyuntik token ke Apps Script.
+Commit & push → app di Pages memanggil Worker, Worker menyuntik token ke Apps Script.
 
-## 4. Verifikasi
-Buka situs → tambah 1 transaksi → cek muncul di Google Sheet kamu.
-Cek juga developer tools browser → di network request ke Worker, token TIDAK ada di body/url.
+## D. Reminder Telegram (GitHub Actions, panggil lewat Worker)
+Di repo GitHub → Settings → Secrets → Actions, tambah:
+- `CF_WORKER_URL` = URL Worker (dari A.3)
+- `APPS_SCRIPT_TOKEN` = token (opsional, untuk direct mode; Worker mode tidak wajib)
+- `TELEGRAM_BOT_TOKEN` = token bot
+- `TELEGRAM_CHAT_ID` = chat id kamu
+
+Workflow [`budget-reminder.yml`](.github/workflows/budget-reminder.yml) jalan tiap 08:00 WIB.
+
+## E. Verifikasi
+- Buka URL Pages → tambah 1 transaksi → cek muncul di Google Sheet.
+- DevTools → Network: request ke Worker tidak mengandung token.
+- (Opsional) Jalankan workflow manual → cek pesan Telegram masuk.
 
 ## Catatan
-- Worker gratis: 100.000 request/hari (cron harian + buka app tiap hari aman banget).
-- Kalau belum deploy Worker, app otomatis jalan di **Mode Demo** (localStorage) — tidak error.
-- Worker sudah handle CORS dan follow redirect dari Apps Script.
+- Pages gratis: unlimited bandwidth untuk situs statis.
+- Worker gratis: 100.000 request/hari.
+- Token hanya ada di Cloudflare (server) + Google Apps Script. Tidak di repo / browser.

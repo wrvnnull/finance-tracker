@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
-"""Hitung ringkasan budget bulan ini dari Google Apps Script, kirim ke Telegram.
+"""Hitung ringkasan budget bulan ini, kirim ke Telegram.
 
-Env yang dibutuhkan:
-  APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-Jika TELEGRAM_BOT_TOKEN kosong -> hanya print pesan (mode dry-run, untuk test).
+Mode:
+  - Jika APPS_SCRIPT_TOKEN ada  -> panggil URL langsung (direct ke Apps Script), token disisipkan.
+  - Jika APPS_SCRIPT_TOKEN kosong -> asumsi APPS_SCRIPT_URL adalah Cloudflare Worker
+    (token disuntik Worker di server, tidak dikirim dari sini).
+
+Env:
+  APPS_SCRIPT_URL   (wajib) -> URL Apps Script ATAU URL Cloudflare Worker
+  APPS_SCRIPT_TOKEN (opsional, direct mode)
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (opsional, kosong = dry-run/print)
+  FORCE_MONTH (opsional, format YYYY-MM)
 """
 import json
 import os
@@ -18,13 +25,20 @@ def fetch_json(url):
         return json.load(r)
 
 
-def build_message(base_url, token):
+def build_message():
+    base = os.environ.get("APPS_SCRIPT_URL")
+    token = os.environ.get("APPS_SCRIPT_TOKEN")
+    if not base:
+        print("ENV APPS_SCRIPT_URL belum diset", file=sys.stderr)
+        sys.exit(1)
+    # Sisipkan token hanya di direct mode; Worker sudah menyuntik di server.
+    sep = "&" if "?" in base else "?"
+    tok = ("&token=" + urllib.parse.quote(token)) if token else ""
+
     month = os.environ.get("FORCE_MONTH") or _now_month()
-    # budget
-    b = fetch_json(f"{base_url}?action=getBudget&month={month}&token={token}")
+    b = fetch_json(f"{base}?action=getBudget&month={month}{tok}")
     budget = int(float(b.get("budget", 0) or 0))
-    # transaksi
-    lst = fetch_json(f"{base_url}?action=list&token={token}")
+    lst = fetch_json(f"{base}?action=list{tok}")
     data = lst.get("data", [])
     spent = sum(int(float(t.get("amount", 0))) for t in data
                 if t.get("type") != "income" and str(t.get("date", "")).startswith(month))
@@ -32,7 +46,6 @@ def build_message(base_url, token):
     if budget <= 0:
         return (f"Budget bulan {month} belum di-set.\n"
                 f"Buka app, lalu tap 'Set' di panel Budget untuk mulai melacak.")
-
     sisa = budget - spent
     pct = int(spent * 100 / budget) if budget else 0
     if sisa >= 0:
@@ -45,7 +58,6 @@ def build_message(base_url, token):
 
 
 def _now_month():
-    # fallback lokal kalau tidak ada modul datetime (jarang)
     import datetime
     return datetime.date.today().strftime("%Y-%m")
 
@@ -64,11 +76,6 @@ def send_telegram(text):
 
 
 if __name__ == "__main__":
-    base = os.environ.get("APPS_SCRIPT_URL")
-    tok = os.environ.get("APPS_SCRIPT_TOKEN") or os.environ.get("TOKEN")
-    if not base or not tok:
-        print("ENV belum lengkap (APPS_SCRIPT_URL, APPS_SCRIPT_TOKEN).", file=sys.stderr)
-        sys.exit(1)
-    msg = build_message(base, tok)
+    msg = build_message()
     print(msg)
     send_telegram(msg)
