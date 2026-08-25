@@ -14,10 +14,24 @@
   };
   function catColor(c) { return CATEGORY_COLORS[c] || CATEGORY_COLORS.Lainnya; }
 
+  // Kalau pakai Cloudflare Worker proxy, token TIDAK dikirim dari browser
+  // (Worker yang menyuntikkan token di server). Jika langsung ke Apps Script,
+  // token dikirim dari sini.
+  function withToken(params) {
+    if (!cfg.USE_PROXY && cfg.TOKEN) params.token = cfg.TOKEN;
+    return params;
+  }
+  function qstr(params) {
+    return Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+  }
+
   var Storage = {
     list: function () {
       if (useSheet) {
-        return fetch(cfg.APPS_SCRIPT_URL + '?action=list&token=' + encodeURIComponent(cfg.TOKEN))
+        var qs = qstr(withToken({ action: 'list' }));
+        return fetch(cfg.APPS_SCRIPT_URL + '?' + qs)
           .then(function (r) { return r.json(); })
           .then(function (d) { if (d.error) throw new Error(d.error); return d.data || []; });
       }
@@ -26,7 +40,9 @@
     add: function (tx) {
       if (useSheet) {
         var fd = new URLSearchParams();
-        fd.set('action', 'add'); fd.set('token', cfg.TOKEN); fd.set('payload', JSON.stringify(tx));
+        fd.set('action', 'add');
+        if (!cfg.USE_PROXY && cfg.TOKEN) fd.set('token', cfg.TOKEN);
+        fd.set('payload', JSON.stringify(tx));
         return fetch(cfg.APPS_SCRIPT_URL, { method: 'POST', body: fd })
           .then(function (r) { return r.json(); })
           .then(function (d) { if (d.error) throw new Error(d.error); return tx; });
@@ -37,7 +53,9 @@
     update: function (tx) {
       if (useSheet) {
         var fd = new URLSearchParams();
-        fd.set('action', 'update'); fd.set('token', cfg.TOKEN); fd.set('id', tx.id);
+        fd.set('action', 'update');
+        if (!cfg.USE_PROXY && cfg.TOKEN) fd.set('token', cfg.TOKEN);
+        fd.set('id', tx.id);
         fd.set('payload', JSON.stringify(tx));
         return fetch(cfg.APPS_SCRIPT_URL, { method: 'POST', body: fd })
           .then(function (r) { return r.json(); })
@@ -49,7 +67,9 @@
     remove: function (id) {
       if (useSheet) {
         var fd = new URLSearchParams();
-        fd.set('action', 'delete'); fd.set('token', cfg.TOKEN); fd.set('id', id);
+        fd.set('action', 'delete');
+        if (!cfg.USE_PROXY && cfg.TOKEN) fd.set('token', cfg.TOKEN);
+        fd.set('id', id);
         return fetch(cfg.APPS_SCRIPT_URL, { method: 'POST', body: fd })
           .then(function (r) { return r.json(); })
           .then(function (d) { if (d.error) throw new Error(d.error); });
@@ -59,7 +79,8 @@
     },
     getBudget: function (month) {
       if (useSheet) {
-        return fetch(cfg.APPS_SCRIPT_URL + '?action=getBudget&month=' + month + '&token=' + encodeURIComponent(cfg.TOKEN))
+        var qs = qstr(withToken({ action: 'getBudget', month: month }));
+        return fetch(cfg.APPS_SCRIPT_URL + '?' + qs)
           .then(function (r) { return r.json(); }).then(function (d) { return d.budget || 0; });
       }
       return Promise.resolve(Number(localStorage.getItem('fin_budget_' + month) || 0));
@@ -67,7 +88,9 @@
     setBudget: function (month, amount) {
       if (useSheet) {
         var fd = new URLSearchParams();
-        fd.set('action', 'setBudget'); fd.set('token', cfg.TOKEN); fd.set('month', month); fd.set('amount', amount);
+        fd.set('action', 'setBudget');
+        if (!cfg.USE_PROXY && cfg.TOKEN) fd.set('token', cfg.TOKEN);
+        fd.set('month', month); fd.set('amount', amount);
         return fetch(cfg.APPS_SCRIPT_URL, { method: 'POST', body: fd })
           .then(function (r) { return r.json(); }).then(function () { return amount; });
       }

@@ -6,24 +6,30 @@
  * Copy URL ke config.js (APPS_SCRIPT_URL) dan set TOKEN di bawah ini.
  *
  * Kolom Transactions: id, date, type, account, category, amount, note, createdAt
- * Sheet Settings: key, value  (dipakai untuk budget per bulan: key = "budget_YYYY-MM")
+ * Sheet Settings: key, value  (budget per bulan: key = "budget_YYYY-MM")
  */
 var CONFIG = {
   SHEET_NAME: 'Transactions',
   SETTINGS_NAME: 'Settings',
-  TOKEN: 'GANTI_DENGAN_TOKEN_RAHASIA' // <- ganti, samakan di config.js
+  TOKEN: 'k3u4ng4nPrib4di_9zQ2xL' // <- sama dengan di config.js / Cloudflare Worker
 };
 
 function doGet(e) { return handle(e); }
 function doPost(e) { return handle(e); }
 
+// Ambil body dari baik JSON maupun form-urlencoded (yang dipakai browser).
 function getBody(e) {
   try {
-    var c = e.postData ? e.postData.contents : '';
-    var obj = c ? JSON.parse(c) : {};
-    if (obj.payload) obj = JSON.parse(obj.payload);
-    return obj;
-  } catch (err) { return {}; }
+    var p = e.parameter || {};
+    // Jika ada field 'payload' (dikirim app.js), parse sebagai JSON tx.
+    if (p.payload) return JSON.parse(p.payload);
+    // Jika postData berupa JSON mentah
+    if (e.postData && e.postData.contents) {
+      try { return JSON.parse(e.postData.contents); } catch (err) { /* fallthrough */ }
+    }
+    // Jika field tersebar sebagai form (action, token, id, ...)
+    return p;
+  } catch (err) { return e.parameter || {}; }
 }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 
