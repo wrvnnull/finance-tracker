@@ -1,114 +1,132 @@
 /*
- * finance-core.js
- * Fungsi murni (tanpa DOM) untuk agregasi & format data keuangan.
- * Dipakai di browser (window.FinanceCore) dan Node (test).
+ * finance-core.js — fungsi murni (tanpa DOM). Dipakai browser & Node (test).
  */
 (function (global) {
   'use strict';
 
-  function parseAmount(v) {
-    var n = Number(v);
-    return isFinite(n) ? n : 0;
+  function fmt(n, cur) {
+    n = Number(n) || 0;
+    var neg = n < 0;
+    var v = Math.abs(Math.round(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '-' : '') + (cur || 'Rp') + ' ' + v;
   }
 
-  function isIncome(t) { return t.type === 'income' || t.type === 'pemasukan'; }
+  var CATEGORY_ICONS = {
+    Makan: '🍔', Transport: '🚗', Belanja: '🛍️', Tagihan: '🧾',
+    Hiburan: '🎮', Kesehatan: '💊', Pendidikan: '📚', Donasi: '🤝',
+    Gaji: '💼', Investasi: '📈', Lainnya: '📦'
+  };
+  function catIcon(c) { return CATEGORY_ICONS[c] || CATEGORY_ICONS.Lainnya; }
 
-  function formatCurrency(amount, currency) {
-    currency = currency || 'Rp';
-    return currency + ' ' + parseAmount(amount).toLocaleString('id-ID');
-  }
+  function monthKey(d) { return String(d || '').slice(0, 7); }
 
-  function formatPercent(p) {
-    return (p >= 0 ? '+' : '') + p.toFixed(1) + '%';
-  }
-
-  function computeSummary(transactions) {
-    var income = 0, expense = 0;
-    transactions.forEach(function (t) {
-      if (isIncome(t)) income += parseAmount(t.amount);
-      else expense += parseAmount(t.amount);
+  function summary(tx, month) {
+    var inc = 0, exp = 0;
+    tx.forEach(function (t) {
+      var m = monthKey(t.date);
+      if (month && m !== month) return;
+      var amt = Number(t.amount) || 0;
+      if (t.type === 'income') inc += amt; else exp += amt;
     });
-    return { income: income, expense: expense, balance: income - expense };
+    return { income: inc, expense: exp, balance: inc - exp };
   }
 
-  function filterTransactions(transactions, opts) {
-    opts = opts || {};
-    return transactions.filter(function (t) {
-      if (opts.month && t.date && t.date.slice(0, 7) !== opts.month) return false;
-      if (opts.type && t.type !== opts.type) return false;
-      if (opts.account && (t.account || 'Lainnya') !== opts.account) return false;
-      if (opts.q) {
-        var q = String(opts.q).toLowerCase();
-        var hay = ((t.note || '') + ' ' + (t.category || '') + ' ' + (t.account || '')).toLowerCase();
+  function byMonth(tx, month) {
+    return tx.filter(function (t) { return !month || monthKey(t.date) === month; });
+  }
+
+  function breakdownByCategory(tx, month) {
+    var map = {};
+    byMonth(tx, month).forEach(function (t) {
+      if (t.type === 'income') return;
+      var c = t.category || 'Lainnya';
+      map[c] = (map[c] || 0) + (Number(t.amount) || 0);
+    });
+    return Object.keys(map).map(function (k) {
+      return { category: k, amount: map[k] };
+    }).sort(function (a, b) { return b.amount - a.amount; });
+  }
+
+  function byAccount(tx, month) {
+    var map = {};
+    tx.forEach(function (t) {
+      if (month && monthKey(t.date) !== month) return;
+      var a = t.account || 'Lainnya';
+      if (!map[a]) map[a] = { account: a, income: 0, expense: 0, balance: 0 };
+      var amt = Number(t.amount) || 0;
+      if (t.type === 'income') { map[a].income += amt; map[a].balance += amt; }
+      else { map[a].expense += amt; map[a].balance -= amt; }
+    });
+    return Object.keys(map).map(function (k) { return map[k]; });
+  }
+
+  function monthlyTotals(tx) {
+    var map = {};
+    tx.forEach(function (t) {
+      var m = monthKey(t.date); if (!m) return;
+      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
+      var amt = Number(t.amount) || 0;
+      if (t.type === 'income') map[m].income += amt; else map[m].expense += amt;
+    });
+    return Object.keys(map).sort().map(function (k) { return map[k]; });
+  }
+
+  function filterTx(tx, f) {
+    f = f || {};
+    return tx.filter(function (t) {
+      if (f.month && monthKey(t.date) !== f.month) return false;
+      if (f.type && t.type !== f.type) return false;
+      if (f.account && t.account !== f.account) return false;
+      if (f.q) {
+        var q = String(f.q).toLowerCase();
+        var hay = (t.category + ' ' + t.note + ' ' + t.account).toLowerCase();
         if (hay.indexOf(q) === -1) return false;
       }
       return true;
     });
   }
 
-  function monthlyBreakdown(transactions) {
-    var map = {};
-    transactions.forEach(function (t) {
-      if (!t.date) return;
-      var m = t.date.slice(0, 7);
-      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
-      map[m][isIncome(t) ? 'income' : 'expense'] += parseAmount(t.amount);
-    });
-    return Object.keys(map).sort().map(function (k) { return map[k]; });
-  }
-
-  function categoryBreakdown(transactions, type) {
-    var map = {};
-    transactions.forEach(function (t) {
-      if (type && t.type !== type) return;
-      var c = t.category || 'Lainnya';
-      map[c] = (map[c] || 0) + parseAmount(t.amount);
-    });
-    return Object.keys(map).map(function (k) {
-      return { category: k, total: map[k] };
-    }).sort(function (a, b) { return b.total - a.total; });
-  }
-
-  function accountBreakdown(transactions) {
-    var map = {};
-    transactions.forEach(function (t) {
-      var a = t.account || 'Lainnya';
-      if (!map[a]) map[a] = { account: a, income: 0, expense: 0 };
-      if (isIncome(t)) map[a].income += parseAmount(t.amount);
-      else map[a].expense += parseAmount(t.amount);
-    });
-    return Object.keys(map).map(function (k) {
-      var v = map[k];
-      return { account: k, income: v.income, expense: v.expense, balance: v.income - v.expense };
-    }).sort(function (a, b) { return b.balance - a.balance; });
-  }
-
-  function replaceById(transactions, tx) {
-    return transactions.map(function (t) {
-      return t.id === tx.id ? Object.assign({}, t, tx) : t;
+  function sortedDesc(tx) {
+    return tx.slice().sort(function (a, b) {
+      return String(b.date).localeCompare(String(a.date)) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
   }
 
-  function toCSV(transactions) {
-    var header = ['id', 'date', 'type', 'account', 'category', 'amount', 'note'];
-    var rows = transactions.map(function (t) {
-      return header.map(function (h) {
-        var val = t[h] == null ? '' : String(t[h]);
-        if (/[",\n]/.test(val)) val = '"' + val.replace(/"/g, '""') + '"';
-        return val;
-      }).join(',');
-    });
-    return header.join(',') + '\n' + rows.join('\n');
+  function replaceById(tx, upd) {
+    return tx.map(function (t) { return t.id === upd.id ? upd : t; });
   }
 
-  var API = {
-    parseAmount: parseAmount, isIncome: isIncome, formatCurrency: formatCurrency,
-    formatPercent: formatPercent, computeSummary: computeSummary,
-    filterTransactions: filterTransactions, monthlyBreakdown: monthlyBreakdown,
-    categoryBreakdown: categoryBreakdown, accountBreakdown: accountBreakdown,
-    replaceById: replaceById, toCSV: toCSV
+  function toCSV(tx) {
+    var head = 'id,date,type,account,category,amount,note';
+    var rows = tx.map(function (t) {
+      return [t.id, t.date, t.type, t.account, t.category, t.amount, '"' + String(t.note || '').replace(/"/g, '""') + '"'].join(',');
+    });
+    return [head].concat(rows).join('\n');
+  }
+
+  // Materialize recurring (langganan) untuk bulan tertentu → list transaksi "rencana"
+  function recurringForMonth(recurring, month) {
+    if (!month) return [];
+    var y = parseInt(month.slice(0, 4), 10), mo = parseInt(month.slice(5, 7), 10);
+    var days = new Date(y, mo, 0).getDate();
+    return recurring.filter(function (r) {
+      var dom = r.day || 1; if (dom > days) dom = days;
+      return true;
+    }).map(function (r) {
+      var dom = r.day || 1; var days2 = new Date(y, mo, 0).getDate(); if (dom > days2) dom = days2;
+      var dd = (dom < 10 ? '0' + dom : dom);
+      return { id: 'rec_' + r.id + '_' + month, date: month + '-' + dd, type: 'expense',
+        account: r.account, category: r.category, amount: r.amount, note: (r.note || '') + ' (otomatis)', recurring: true };
+    });
+  }
+
+  global.FinanceCore = {
+    formatCurrency: fmt, catIcon: catIcon, monthKey: monthKey,
+    summary: summary, byMonth: byMonth, breakdownByCategory: breakdownByCategory,
+    byAccount: byAccount, monthlyTotals: monthlyTotals, filterTx: filterTx,
+    sortedDesc: sortedDesc, replaceById: replaceById, toCSV: toCSV,
+    recurringForMonth: recurringForMonth, CATEGORY_ICONS: CATEGORY_ICONS
   };
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = API;
-  if (global) global.FinanceCore = API;
+  if (typeof module !== 'undefined' && module.exports) module.exports = global.FinanceCore;
 })(typeof window !== 'undefined' ? window : this);

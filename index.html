@@ -3,145 +3,188 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f6f7fb" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Keuangan" />
+  <meta name="theme-color" content="#f4f6f8" />
   <title>Keuangan Pribadi</title>
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icon.svg" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="icon" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="wrap">
     <header class="top">
-      <div class="brand">
-        <div class="logo">💰</div>
-        <div>
-          <h1>Keuangan Pribadi</h1>
-          <p>Tracker harian · gratis, database Google Sheets</p>
-        </div>
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+      <div>
+        <div class="brand-name">Keuangan Pribadi</div>
+        <div class="brand-sub">Track harian · gratis · privat</div>
       </div>
-      <div class="header-actions">
-        <button class="ghost sm" id="pdfBtn">⬇️ PDF</button>
-        <button class="ghost sm" id="exportBtn">CSV</button>
-      </div>
+      <div class="spacer"></div>
+      <span id="banner" class="pill"></span>
     </header>
 
-    <div id="banner" class="banner" style="display:none"></div>
+    <div id="bWrapper" style="margin-bottom:14px"></div>
 
-    <div class="cards">
-      <div class="card balance">
-        <div class="label">Saldo</div>
-        <div class="value" id="bal">Rp 0</div>
-        <div class="sub">total semua akun</div>
-      </div>
-      <div class="card">
-        <div class="label">Pemasukan</div>
-        <div class="value" id="inc" style="color:var(--green)">Rp 0</div>
-        <div class="sub">periode terpilih</div>
-      </div>
-      <div class="card">
-        <div class="label">Pengeluaran</div>
-        <div class="value" id="exp" style="color:var(--red)">Rp 0</div>
-        <div class="sub" id="expSub">bulan ini</div>
-      </div>
-      <div class="card">
-        <div class="label">Bulan ini vs lalu</div>
-        <div class="compare">
-          <div class="c"><div class="t">Sekarang</div><div class="v" id="cmpCur">Rp 0</div></div>
-          <div class="c"><div class="t">Lalu</div><div class="v" id="cmpPrev">Rp 0</div></div>
+    <div class="summary">
+      <div class="scard"><div class="lab">💼 Saldo</div><div id="bal" class="val brand">Rp 0</div></div>
+      <div class="scard"><div class="lab">📈 Pemasukan</div><div id="inc" class="val green">Rp 0</div></div>
+      <div class="scard"><div class="lab">📉 Pengeluaran</div><div id="exp" class="val red">Rp 0</div><div id="expSub" class="sub"></div></div>
+      <div class="scard"><div class="lab">🗓️ Bulan</div><div id="mLabel" class="val">—</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- KIRI -->
+      <div>
+        <div class="card" style="margin-bottom:18px">
+          <h3><span class="ic">➕</span> Tambah Transaksi</h3>
+          <form id="txForm">
+            <label>Tanggal</label>
+            <input type="date" id="f_date" required />
+            <label>Tipe</label>
+            <div class="seg">
+              <button type="button" id="seg_expense" class="on">Pengeluaran</button>
+              <button type="button" id="seg_income">Pemasukan</button>
+            </div>
+            <input type="hidden" id="f_type" value="expense" />
+            <div class="row2">
+              <div><label>Akun</label><select id="f_account"></select></div>
+              <div><label>Kategori</label><select id="f_category"></select></div>
+            </div>
+            <label>Jumlah</label>
+            <input type="number" id="f_amount" placeholder="0" min="0" step="100" required />
+            <label>Catatan</label>
+            <input type="text" id="f_note" placeholder="misal: makan siang" />
+            <button class="btn" type="submit">Simpan</button>
+          </form>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <h3><span class="ic">🎯</span> Budget Bulanan</h3>
+          <div class="budget-row">
+            <input type="number" id="b_in" placeholder="Target budget" min="0" step="1000" />
+            <button class="btn sm" id="b_set">Set</button>
+          </div>
+          <div class="progress"><span id="b_prog" style="width:0%"></span></div>
+          <div class="budget-note">Terpakai: <b id="b_cur">Rp 0</b> · <span id="b_note"></span></div>
+        </div>
+
+        <div class="card">
+          <h3><span class="ic">🔁</span> Langganan (recurring)</h3>
+          <form id="recForm">
+            <div class="row2">
+              <div><label>Nama</label><input type="text" id="r_name" placeholder="Netflix" /></div>
+              <div><label>Tgl</label><input type="number" id="r_day" value="1" min="1" max="31" /></div>
+            </div>
+            <div class="row2">
+              <div><label>Akun</label><select id="r_account"></select></div>
+              <div><label>Kategori</label><select id="r_category"></select></div>
+            </div>
+            <label>Jumlah</label>
+            <input type="number" id="r_amount" placeholder="0" min="0" step="1000" />
+            <label>Catatan</label>
+            <input type="text" id="r_note" placeholder="opsional" />
+            <button class="btn ghost" type="submit">Simpan langganan</button>
+          </form>
+          <div id="recList" style="margin-top:12px"></div>
         </div>
       </div>
-    </div>
 
-    <div class="panel">
-      <h2>➕ Tambah Transaksi</h2>
-      <form id="txForm" class="form-grid">
-        <div class="field"><label for="f_date">Tanggal</label><input type="date" id="f_date" required /></div>
-        <div class="field"><label for="f_type">Tipe</label>
-          <select id="f_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
+      <!-- KANAN -->
+      <div>
+        <div class="card" style="margin-bottom:18px">
+          <h3><span class="ic">🏦</span> Saldo per Akun</h3>
+          <div id="acctGrid" class="acct-grid"></div>
         </div>
-        <div class="field"><label for="f_account">Akun</label><select id="f_account"></select></div>
-        <div class="field"><label for="f_category">Kategori</label>
-          <input id="f_category" list="catList" placeholder="Makan, Transport, Gaji..." />
-          <datalist id="catList">
-            <option value="Makan"></option><option value="Transport"></option><option value="Belanja"></option>
-            <option value="Tagihan"></option><option value="Hiburan"></option><option value="Kesehatan"></option>
-            <option value="Gaji"></option><option value="Freelance"></option><option value="Investasi"></option>
-            <option value="Lainnya"></option>
-          </datalist>
+
+        <div class="card" style="margin-bottom:18px">
+          <h3><span class="ic">📊</span> Grafik</h3>
+          <div class="charts">
+            <div><div class="mini" style="text-align:center;color:var(--muted);margin-bottom:6px">Pengeluaran per kategori</div><canvas id="pieCat" width="320" height="220"></canvas></div>
+            <div><div class="mini" style="text-align:center;color:var(--muted);margin-bottom:6px">Pengeluaran per akun</div><canvas id="pieAcc" width="320" height="220"></canvas></div>
+          </div>
         </div>
-        <div class="field"><label for="f_amount">Jumlah (Rp)</label><input type="number" id="f_amount" min="0" step="1000" placeholder="50000" required /></div>
-        <div class="field"><label for="f_note">Catatan</label><input id="f_note" placeholder="optional" /></div>
-        <div class="field"><label>&nbsp;</label><button type="submit">Simpan</button></div>
-      </form>
-    </div>
 
-    <div class="panel">
-      <h2>🏦 Saldo per Akun</h2>
-      <div class="acct-grid" id="acctGrid"></div>
-    </div>
-
-    <div class="panel">
-      <h2>🎯 Budget Bulanan</h2>
-      <div id="budgetBox"></div>
-    </div>
-
-    <div class="panel">
-      <h2>📋 Daftar Transaksi</h2>
-      <div class="toolbar">
-        <div class="field"><label for="f_month">Bulan</label><select id="f_month"><option value="">Semua bulan</option></select></div>
-        <div class="field"><label for="f_type_filter">Tipe</label>
-          <select id="f_type_filter"><option value="">Semua</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
+        <div class="card">
+          <h3><span class="ic">🧾</span> Transaksi</h3>
+          <div class="tx-tools">
+            <select id="f_month"></select>
+            <select id="f_type_filter"><option value="">Semua tipe</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
+            <select id="f_account_filter"><option value="">Semua akun</option></select>
+            <input type="search" id="f_search" placeholder="🔍 cari..." />
+            <button class="btn sm" id="exportBtn">CSV</button>
+            <button class="btn sm" id="pdfBtn">PDF</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Tgl</th><th>Kategori</th><th>Akun</th><th>Catatan</th><th style="text-align:right">Jumlah</th><th></th></tr></thead>
+              <tbody id="txBody"></tbody>
+            </table>
+          </div>
+          <div id="txEmpty" class="empty" style="display:none">
+            <div class="em">🪙</div>
+            <p>Belum ada transaksi bulan ini.<br />Tap tombol + di kanan bawah untuk mulai.</p>
+          </div>
         </div>
-        <div class="field"><label for="f_account_filter">Akun</label><select id="f_account_filter"><option value="">Semua</option></select></div>
-        <div class="field"><label for="f_search">Cari</label><input id="f_search" placeholder="note / kategori" /></div>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Tanggal</th><th>Tipe</th><th>Akun</th><th>Kategori</th><th class="amt">Jumlah</th><th>Catatan</th><th></th></tr></thead>
-          <tbody id="txBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="charts">
-      <div class="chart-box"><h3>Pemasukan vs Pengeluaran per Bulan</h3><canvas id="barChart"></canvas></div>
-      <div class="chart-box"><h3>Pengeluaran per Kategori</h3><canvas id="catChart"></canvas></div>
     </div>
   </div>
 
+  <button class="fab" id="fab" title="Tambah cepat">＋</button>
+  <div id="toast"></div>
+
+  <!-- Modal Tambah (FAB) -->
+  <div class="modal-bg" id="addModal">
+    <div class="modal">
+      <button class="close">×</button>
+      <h3>Tambah Cepat</h3>
+      <label>Tanggal</label><input type="date" id="date" />
+      <label>Jumlah</label><input type="number" id="quick_amount" placeholder="0" min="0" step="100" />
+      <label>Kategori</label><select id="quick_cat"></select>
+      <label>Akun</label><select id="quick_acc"></select>
+      <label>Catatan</label><input type="text" id="quick_note" placeholder="opsional" />
+      <button class="btn" id="quick_save">Simpan</button>
+    </div>
+  </div>
+
+  <!-- Modal Edit -->
   <div class="modal-bg" id="editModal">
     <div class="modal">
-      <h3>✏️ Edit Transaksi</h3>
-      <form id="editForm" class="form-grid">
+      <button class="close">×</button>
+      <h3>Edit Transaksi</h3>
+      <form id="editForm">
         <input type="hidden" id="e_id" />
-        <div class="field"><label for="e_date">Tanggal</label><input type="date" id="e_date" required /></div>
-        <div class="field"><label for="e_type">Tipe</label>
-          <select id="e_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
-        </div>
-        <div class="field"><label for="e_account">Akun</label><select id="e_account"></select></div>
-        <div class="field"><label for="e_category">Kategori</label><input id="e_category" list="catList" /></div>
-        <div class="field"><label for="e_amount">Jumlah (Rp)</label><input type="number" id="e_amount" min="0" step="1000" required /></div>
-        <div class="field" style="grid-column:1/-1"><label for="e_note">Catatan</label><input id="e_note" /></div>
-        <div class="actions">
-          <button type="button" class="ghost" id="editCancel">Batal</button>
-          <button type="submit">Simpan Perubahan</button>
-        </div>
+        <label>Tanggal</label><input type="date" id="e_date" />
+        <label>Tipe</label><select id="e_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
+        <div class="row2"><div><label>Akun</label><select id="e_account"></select></div><div><label>Kategori</label><select id="e_category"></select></div></div>
+        <label>Jumlah</label><input type="number" id="e_amount" min="0" step="100" />
+        <label>Catatan</label><input type="text" id="e_note" />
+        <button class="btn" type="submit">Simpan Perubahan</button>
       </form>
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="config.js"></script>
   <script src="finance-core.js"></script>
+  <script src="config.js"></script>
   <script src="app.js"></script>
+  <script>
+    document.getElementById('mLabel').textContent = (function(){var m=new Date().toISOString().slice(0,7);var p=m.split('-');var mo=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];return mo[parseInt(p[1],10)-1]+' '+p[0];})();
+    // Isi dropdown quick-add & edit dari config
+    (function(){
+      var cats = Object.keys(window.FinanceCore.CATEGORY_ICONS);
+      var accs = (window.APP_CONFIG.ACCOUNTS)||['Dompet','Bank','Lainnya'];
+      function fill(sel){cats.forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=window.FinanceCore.catIcon(c)+' '+c;sel.appendChild(o);});}
+      function fillA(sel){accs.forEach(function(a){var o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o);});}
+      fill(document.getElementById('quick_cat')); fill(document.getElementById('e_category'));
+      fillA(document.getElementById('quick_acc')); fillA(document.getElementById('e_account'));
+      document.getElementById('date').value = new Date().toISOString().slice(0,10);
+      document.getElementById('quick_save').addEventListener('click', function(){
+        var tx={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),date:document.getElementById('date').value,type:'expense',account:document.getElementById('quick_acc').value,category:document.getElementById('quick_cat').value,amount:Number(document.getElementById('quick_amount').value)||0,note:document.getElementById('quick_note').value};
+        if(!tx.amount){return alert('Jumlah wajib');}
+        // reuse storage via a small bridge
+        window.__quickAdd(tx);
+      });
+    })();
+  </script>
 </body>
 </html>
