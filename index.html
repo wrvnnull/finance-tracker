@@ -3,127 +3,119 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0e14" />
+  <meta name="theme-color" content="#f6f7fb" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Keuangan" />
   <title>Keuangan Pribadi</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div class="logo">💰</div>
-      <div>
-        <h1>Keuangan Pribadi</h1>
-        <p>Tracker harian — gratis, database di Google Sheets.</p>
+    <header class="top">
+      <div class="brand">
+        <div class="logo">💰</div>
+        <div>
+          <h1>Keuangan Pribadi</h1>
+          <p>Tracker harian · gratis, database Google Sheets</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="ghost sm" id="pdfBtn">⬇️ PDF</button>
+        <button class="ghost sm" id="exportBtn">CSV</button>
       </div>
     </header>
 
     <div id="banner" class="banner" style="display:none"></div>
 
     <div class="cards">
-      <div class="card balance"><div class="label">Saldo</div><div class="value" id="bal">Rp 0</div></div>
-      <div class="card income"><div class="label">Pemasukan</div><div class="value" id="inc">Rp 0</div></div>
-      <div class="card expense"><div class="label">Pengeluaran</div><div class="value" id="exp">Rp 0</div><div class="sub" id="expSub">bulan ini</div></div>
+      <div class="card balance">
+        <div class="label">Saldo</div>
+        <div class="value" id="bal">Rp 0</div>
+        <div class="sub">total semua akun</div>
+      </div>
+      <div class="card">
+        <div class="label">Pemasukan</div>
+        <div class="value" id="inc" style="color:var(--green)">Rp 0</div>
+        <div class="sub">periode terpilih</div>
+      </div>
+      <div class="card">
+        <div class="label">Pengeluaran</div>
+        <div class="value" id="exp" style="color:var(--red)">Rp 0</div>
+        <div class="sub" id="expSub">bulan ini</div>
+      </div>
+      <div class="card">
+        <div class="label">Bulan ini vs lalu</div>
+        <div class="compare">
+          <div class="c"><div class="t">Sekarang</div><div class="v" id="cmpCur">Rp 0</div></div>
+          <div class="c"><div class="t">Lalu</div><div class="v" id="cmpPrev">Rp 0</div></div>
+        </div>
+      </div>
     </div>
 
     <div class="panel">
       <h2>➕ Tambah Transaksi</h2>
       <form id="txForm" class="form-grid">
-        <div class="field">
-          <label for="f_date">Tanggal</label>
-          <input type="date" id="f_date" required />
+        <div class="field"><label for="f_date">Tanggal</label><input type="date" id="f_date" required /></div>
+        <div class="field"><label for="f_type">Tipe</label>
+          <select id="f_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
         </div>
-        <div class="field">
-          <label for="f_type">Tipe</label>
-          <select id="f_type">
-            <option value="expense">Pengeluaran</option>
-            <option value="income">Pemasukan</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="f_category">Kategori</label>
+        <div class="field"><label for="f_account">Akun</label><select id="f_account"></select></div>
+        <div class="field"><label for="f_category">Kategori</label>
           <input id="f_category" list="catList" placeholder="Makan, Transport, Gaji..." />
           <datalist id="catList">
-            <option value="Makan"></option><option value="Transport"></option>
-            <option value="Belanja"></option><option value="Tagihan"></option>
-            <option value="Hiburan"></option><option value="Kesehatan"></option>
-            <option value="Gaji"></option><option value="Freelance"></option>
-            <option value="Investasi"></option><option value="Lainnya"></option>
+            <option value="Makan"></option><option value="Transport"></option><option value="Belanja"></option>
+            <option value="Tagihan"></option><option value="Hiburan"></option><option value="Kesehatan"></option>
+            <option value="Gaji"></option><option value="Freelance"></option><option value="Investasi"></option>
+            <option value="Lainnya"></option>
           </datalist>
         </div>
-        <div class="field">
-          <label for="f_amount">Jumlah (Rp)</label>
-          <input type="number" id="f_amount" min="0" step="1000" placeholder="50000" required />
-        </div>
-        <div class="field">
-          <label for="f_note">Catatan</label>
-          <input id="f_note" placeholder="optional" />
-        </div>
-        <div class="field">
-          <button type="submit">Simpan</button>
-        </div>
+        <div class="field"><label for="f_amount">Jumlah (Rp)</label><input type="number" id="f_amount" min="0" step="1000" placeholder="50000" required /></div>
+        <div class="field"><label for="f_note">Catatan</label><input id="f_note" placeholder="optional" /></div>
+        <div class="field"><label>&nbsp;</label><button type="submit">Simpan</button></div>
       </form>
+    </div>
+
+    <div class="panel">
+      <h2>🏦 Saldo per Akun</h2>
+      <div class="acct-grid" id="acctGrid"></div>
     </div>
 
     <div class="panel">
       <h2>🎯 Budget Bulanan</h2>
       <div id="budgetBox"></div>
-      <div class="compare" id="compareBox" style="margin-top:14px">
-        <div class="c"><div class="t">Bulan ini</div><div class="v" id="cmpCur">Rp 0</div></div>
-        <div class="c"><div class="t">Bulan lalu</div><div class="v" id="cmpPrev">Rp 0</div></div>
-      </div>
     </div>
 
     <div class="panel">
       <h2>📋 Daftar Transaksi</h2>
       <div class="toolbar">
-        <div class="field">
-          <label for="f_month">Bulan</label>
-          <select id="f_month"><option value="">Semua bulan</option></select>
+        <div class="field"><label for="f_month">Bulan</label><select id="f_month"><option value="">Semua bulan</option></select></div>
+        <div class="field"><label for="f_type_filter">Tipe</label>
+          <select id="f_type_filter"><option value="">Semua</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
         </div>
-        <div class="field">
-          <label for="f_type_filter">Tipe</label>
-          <select id="f_type_filter">
-            <option value="">Semua</option>
-            <option value="income">Pemasukan</option>
-            <option value="expense">Pengeluaran</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="f_search">Cari</label>
-          <input id="f_search" placeholder="note / kategori" />
-        </div>
-        <div class="field">
-          <label>&nbsp;</label>
-          <button class="ghost" id="exportBtn">⬇️ Export CSV</button>
-        </div>
+        <div class="field"><label for="f_account_filter">Akun</label><select id="f_account_filter"><option value="">Semua</option></select></div>
+        <div class="field"><label for="f_search">Cari</label><input id="f_search" placeholder="note / kategori" /></div>
       </div>
-      <table>
-        <thead>
-          <tr><th>Tanggal</th><th>Tipe</th><th>Kategori</th><th class="amt">Jumlah</th><th>Catatan</th><th></th></tr>
-        </thead>
-        <tbody id="txBody"></tbody>
-      </table>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tanggal</th><th>Tipe</th><th>Akun</th><th>Kategori</th><th class="amt">Jumlah</th><th>Catatan</th><th></th></tr></thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="charts">
-      <div class="chart-box">
-        <h3>Pemasukan vs Pengeluaran per Bulan</h3>
-        <canvas id="barChart"></canvas>
-      </div>
-      <div class="chart-box">
-        <h3>Pengeluaran per Kategori</h3>
-        <canvas id="catChart"></canvas>
-      </div>
+      <div class="chart-box"><h3>Pemasukan vs Pengeluaran per Bulan</h3><canvas id="barChart"></canvas></div>
+      <div class="chart-box"><h3>Pengeluaran per Kategori</h3><canvas id="catChart"></canvas></div>
     </div>
   </div>
 
-  <!-- Modal Edit -->
   <div class="modal-bg" id="editModal">
     <div class="modal">
       <h3>✏️ Edit Transaksi</h3>
@@ -133,6 +125,7 @@
         <div class="field"><label for="e_type">Tipe</label>
           <select id="e_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
         </div>
+        <div class="field"><label for="e_account">Akun</label><select id="e_account"></select></div>
         <div class="field"><label for="e_category">Kategori</label><input id="e_category" list="catList" /></div>
         <div class="field"><label for="e_amount">Jumlah (Rp)</label><input type="number" id="e_amount" min="0" step="1000" required /></div>
         <div class="field" style="grid-column:1/-1"><label for="e_note">Catatan</label><input id="e_note" /></div>

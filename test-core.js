@@ -31,6 +31,6 @@ console.assert(cb[0].category === 'Makan' && cb[0].total === 80000, 'category sa
 
 var csv = FC.toCSV(tx);
 console.assert(csv.split('\n').length === 5, 'csv rows salah');
-console.assert(csv.indexOf('id,date,type,category,amount,note') === 0, 'csv header salah');
+console.assert(csv.indexOf('id,date,type,account,category,amount,note') === 0, 'csv header salah');
 
 console.log('ALL TESTS PASSED ✓', JSON.stringify(s));
