@@ -2,15 +2,25 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0e14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Keuangan" />
   <title>Keuangan Pribadi</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>💰 Keuangan Pribadi</h1>
-      <p>Tracker harian — gratis, database di Google Sheets.</p>
+      <div class="logo">💰</div>
+      <div>
+        <h1>Keuangan Pribadi</h1>
+        <p>Tracker harian — gratis, database di Google Sheets.</p>
+      </div>
     </header>
 
     <div id="banner" class="banner" style="display:none"></div>
@@ -18,11 +28,11 @@
     <div class="cards">
       <div class="card balance"><div class="label">Saldo</div><div class="value" id="bal">Rp 0</div></div>
       <div class="card income"><div class="label">Pemasukan</div><div class="value" id="inc">Rp 0</div></div>
-      <div class="card expense"><div class="label">Pengeluaran</div><div class="value" id="exp">Rp 0</div></div>
+      <div class="card expense"><div class="label">Pengeluaran</div><div class="value" id="exp">Rp 0</div><div class="sub" id="expSub">bulan ini</div></div>
     </div>
 
     <div class="panel">
-      <h2>Tambah Transaksi</h2>
+      <h2>➕ Tambah Transaksi</h2>
       <form id="txForm" class="form-grid">
         <div class="field">
           <label for="f_date">Tanggal</label>
@@ -61,14 +71,23 @@
     </div>
 
     <div class="panel">
-      <h2>Daftar Transaksi</h2>
+      <h2>🎯 Budget Bulanan</h2>
+      <div id="budgetBox"></div>
+      <div class="compare" id="compareBox" style="margin-top:14px">
+        <div class="c"><div class="t">Bulan ini</div><div class="v" id="cmpCur">Rp 0</div></div>
+        <div class="c"><div class="t">Bulan lalu</div><div class="v" id="cmpPrev">Rp 0</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📋 Daftar Transaksi</h2>
       <div class="toolbar">
         <div class="field">
           <label for="f_month">Bulan</label>
           <select id="f_month"><option value="">Semua bulan</option></select>
         </div>
         <div class="field">
-          <label for="f_type">Tipe</label>
+          <label for="f_type_filter">Tipe</label>
           <select id="f_type_filter">
             <option value="">Semua</option>
             <option value="income">Pemasukan</option>
@@ -101,6 +120,27 @@
         <h3>Pengeluaran per Kategori</h3>
         <canvas id="catChart"></canvas>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Edit -->
+  <div class="modal-bg" id="editModal">
+    <div class="modal">
+      <h3>✏️ Edit Transaksi</h3>
+      <form id="editForm" class="form-grid">
+        <input type="hidden" id="e_id" />
+        <div class="field"><label for="e_date">Tanggal</label><input type="date" id="e_date" required /></div>
+        <div class="field"><label for="e_type">Tipe</label>
+          <select id="e_type"><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option></select>
+        </div>
+        <div class="field"><label for="e_category">Kategori</label><input id="e_category" list="catList" /></div>
+        <div class="field"><label for="e_amount">Jumlah (Rp)</label><input type="number" id="e_amount" min="0" step="1000" required /></div>
+        <div class="field" style="grid-column:1/-1"><label for="e_note">Catatan</label><input id="e_note" /></div>
+        <div class="actions">
+          <button type="button" class="ghost" id="editCancel">Batal</button>
+          <button type="submit">Simpan Perubahan</button>
+        </div>
+      </form>
     </div>
   </div>
 

@@ -5,8 +5,10 @@
  *   - Who has access: Anyone
  * Copy URL-nya ke config.js (APPS_SCRIPT_URL) dan set TOKEN di bawah ini.
  *
- * CATATAN KEAMANAN: "Anyone" artinya siapa saja yg punya URL bisa akses,
- * makanya wajib pakai TOKEN rahasia. Jangan share URL+token ke orang lain.
+ * CATATAN KEAMANAN: "Anyone" berarti siapa saja yg punya URL bisa akses,
+ * makanya wajib pakai TOKEN rahasia. Jangan commit token ke repo publik.
+ * Untuk privasi lebih kuat, ubah "Who has access" ke akun Google kamu
+ * (lalu app hanya jalan saat kamu login Google di perangkat tersebut).
  */
 var CONFIG = {
   SHEET_NAME: 'Transactions',
@@ -16,9 +18,20 @@ var CONFIG = {
 function doGet(e) { return handle(e); }
 function doPost(e) { return handle(e); }
 
+function getBody(e) {
+  try {
+    var c = e.postData ? e.postData.contents : '';
+    var obj = c ? JSON.parse(c) : {};
+    if (obj.payload) obj = JSON.parse(obj.payload);
+    return obj;
+  } catch (err) { return {}; }
+}
+
+function today() { return new Date().toISOString().slice(0, 10); }
+
 function handle(e) {
   try {
-    var p = e.parameter;
+    var p = e.parameter || {};
     if (p.token !== CONFIG.TOKEN) {
       return json({ error: 'unauthorized' }, 401);
     }
@@ -29,13 +42,12 @@ function handle(e) {
       return json({ data: readAll(sheet) });
     }
 
+    var body = getBody(e);
+
     if (action === 'add') {
-      var body = JSON.parse(e.postData ? e.postData.contents : '{}');
-      // body sudah dikirim sebagai URL-encoded field "payload" berisi JSON
-      if (body.payload) body = JSON.parse(body.payload);
       var row = [
         body.id || String(Utilities.getUuid()),
-        body.date || new Date().toISOString().slice(0, 10),
+        body.date || today(),
         body.type || 'expense',
         body.category || 'Lainnya',
         Number(body.amount) || 0,
@@ -46,9 +58,15 @@ function handle(e) {
       return json({ success: true, row: row });
     }
 
+    if (action === 'update') {
+      var id = p.id || body.id;
+      var ok = updateById(sheet, id, body);
+      return json({ success: true, updated: ok });
+    }
+
     if (action === 'delete') {
-      var deleted = deleteById(sheet, p.id);
-      return json({ success: true, deleted: deleted });
+      var del = deleteById(sheet, p.id || body.id);
+      return json({ success: true, deleted: del });
     }
 
     return json({ error: 'unknown action: ' + action }, 400);
@@ -64,6 +82,7 @@ function getSheet() {
     sheet = ss.insertSheet(CONFIG.SHEET_NAME);
     sheet.appendRow(['id', 'date', 'type', 'category', 'amount', 'note', 'createdAt']);
     sheet.getRange(1, 1, 1, 7).setFontWeight('bold');
+    sheet.sort(2, false); // tanggal terbaru di atas
   }
   return sheet;
 }
@@ -87,6 +106,26 @@ function deleteById(sheet, id) {
   for (var i = 0; i < ids.length; i++) {
     if (String(ids[i][0]) === String(id)) {
       sheet.deleteRow(i + 2);
+      return true;
+    }
+  }
+  return false;
+}
+
+function updateById(sheet, id, data) {
+  var last = sheet.getLastRow();
+  if (last < 2) return false;
+  var ids = sheet.getRange(2, 1, last - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]) === String(id)) {
+      var rowNum = i + 2;
+      sheet.getRange(rowNum, 2, 1, 5).setValues([[
+        data.date || today(),
+        data.type || 'expense',
+        data.category || 'Lainnya',
+        Number(data.amount) || 0,
+        data.note || ''
+      ]]);
       return true;
     }
   }

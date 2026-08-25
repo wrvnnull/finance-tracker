@@ -67,6 +67,12 @@
     }).sort(function (a, b) { return b.total - a.total; });
   }
 
+  function replaceById(transactions, tx) {
+    return transactions.map(function (t) {
+      return t.id === tx.id ? Object.assign({}, t, tx) : t;
+    });
+  }
+
   function toCSV(transactions) {
     var header = ['id', 'date', 'type', 'category', 'amount', 'note'];
     var rows = transactions.map(function (t) {
@@ -87,6 +93,7 @@
     filterTransactions: filterTransactions,
     monthlyBreakdown: monthlyBreakdown,
     categoryBreakdown: categoryBreakdown,
+    replaceById: replaceById,
     toCSV: toCSV
   };
 
